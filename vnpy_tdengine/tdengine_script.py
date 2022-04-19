@@ -11,7 +11,6 @@ CREATE DATABASE IF NOT EXISTS vnpy KEEP 36500 UPDATE 2
 CREATE_BAR_TABLE_SCRIPT = """
 CREATE STABLE IF NOT EXISTS s_bar (
     datetime TIMESTAMP,
-    interval_ BINARY(5),
     volume DOUBLE,
     turnover DOUBLE,
     open_interest DOUBLE,
@@ -22,7 +21,11 @@ CREATE STABLE IF NOT EXISTS s_bar (
     )
 TAGS(
     symbol BINARY(20),
-    exchange BINARY(10)
+    exchange BINARY(10),
+    interval_ BINARY(5),
+    start_time TIMESTAMP,
+    end_time TIMESTAMP,
+    count DOUBLE
     )
 """
 
