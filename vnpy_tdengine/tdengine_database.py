@@ -76,9 +76,10 @@ class TdengineDatabase(BaseDatabase):
         else:
             overview_start = min(overview_start, bars[0].datetime)
             overview_end = max(overview_end, bars[-1].datetime)
-            result = self.conn.query(f"select count(*) from {table_name}")
-            count: List[dict] = result.fetch_all_into_dict()
-            bar_count: int = count[0]["count(*)"]
+            self.c1.execute(f"select count(*) from {table_name}")
+
+            results = self.c1.fetchall()
+            bar_count: int = results[0][0]
             overview_count = bar_count
 
         self.c1.execute(f"ALTER TABLE {table_name} SET TAG start_time='{overview_start}';")
@@ -110,7 +111,8 @@ class TdengineDatabase(BaseDatabase):
         """读取K线数据"""
         table_name: str = "_".join(["bar", symbol, exchange.value, interval.value])
 
-        data = self.conn.query(f"select *, interval_ from {table_name} WHERE datetime BETWEEN '{start}' AND '{end}'")
+        self.c1.execute(f"select *, interval_ from {table_name} WHERE datetime BETWEEN '{start}' AND '{end}'")
+        data: list = self.c1.fetchall()
 
         bars: List[BarData] = []
         for d in data:
@@ -143,7 +145,8 @@ class TdengineDatabase(BaseDatabase):
         """读取TICK数据"""
         table_name: str = "_".join(["tick", symbol, exchange.value])
 
-        data = self.conn.query(f"select * from {table_name} WHERE datetime BETWEEN '{start}' AND '{end}'")
+        self.c1.execute(f"select * from {table_name} WHERE datetime BETWEEN '{start}' AND '{end}'")
+        data: list = self.c1.fetchall()
 
         ticks: List[TickData] = []
         for d in data:
@@ -200,8 +203,9 @@ class TdengineDatabase(BaseDatabase):
         table_name: str = "_".join(["bar", symbol, exchange.value, interval.value])
 
         # 查询K线数量
-        result = self.conn.query(f"select count(*) from {table_name}")
-        count: int = result.fetch_all_into_dict()[0]["count(*)"]
+        self.c1.execute(f"select count(*) from {table_name}")
+        result: list = self.c1.fetchall()
+        count: int = result[0][0]
 
         # 删除K线数据
         self.c1.execute(f"DROP TABLE {table_name}")
@@ -217,13 +221,14 @@ class TdengineDatabase(BaseDatabase):
         table_name: str = "_".join(["tick", symbol, exchange.value])
 
         # 查询TICK数量
-        result = self.conn.query(f"select count(*) from {table_name}")
-        count: dict = result.fetch_all_into_dict()
+        self.c1.execute(f"select count(*) from {table_name}")
+        result: list = self.c1.fetchall()
+        count: int = result[0][0]
 
         # 删除TICK数据
         self.c1.execute(f"DROP TABLE {table_name}")
 
-        return count[0]["count(*)"]
+        return count
 
     def get_bar_overview(self) -> List[BarOverview]:
         """查询K线汇总信息"""
@@ -231,6 +236,7 @@ class TdengineDatabase(BaseDatabase):
 
         self.c1.execute("SELECT symbol, exchange, interval_, start_time, end_time, count FROM s_bar")
         results = self.c1.fetchall()
+
         for i in results:
             overview: BarOverview = BarOverview(
                 symbol=i[0],
