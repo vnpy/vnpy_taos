@@ -1,9 +1,7 @@
 from datetime import datetime
-from typing import List, Optional
-import shelve
+from typing import List
 
 import taos
-
 from vnpy.trader.database import BaseDatabase, BarOverview, DB_TZ, convert_tz
 from vnpy.trader.object import (
     BarData,
@@ -12,10 +10,6 @@ from vnpy.trader.object import (
     Interval
 )
 from vnpy.trader.setting import SETTINGS
-from vnpy.trader.utility import (
-    generate_vt_symbol,
-    get_file_path
-)
 
 from .tdengine_script import (
     CREATE_DATABASE_SCRIPT,
@@ -27,10 +21,6 @@ from .tdengine_script import (
 class TdengineDatabase(BaseDatabase):
     """Tdengine数据库接口"""
 
-    # K线汇总数据存储路径
-    overview_filename: str = "tdengine_overview"
-    overview_filepath: str = str(get_file_path(overview_filename))
-
     def __init__(self) -> None:
         """构造函数"""
         self.user: str = SETTINGS["database.user"]
@@ -38,8 +28,17 @@ class TdengineDatabase(BaseDatabase):
         self.host: str = SETTINGS["database.host"]
         self.port: int = SETTINGS["database.port"]
         self.config: str = "/etc/taos"
+        self.timezone: str = SETTINGS["database.timezone"]
 
-        self.conn = taos.connect(host=self.host, user=self.user, password=self.password, port=self.port, config=self.config)
+        self.conn = taos.connect(
+            host=self.host,
+            user=self.user,
+            password=self.password,
+            port=self.port,
+            config=self.config,
+            timezone=self.timezone
+        )
+
         self.c1 = self.conn.cursor()
 
         self.c1.execute(CREATE_DATABASE_SCRIPT)
@@ -54,41 +53,37 @@ class TdengineDatabase(BaseDatabase):
         symbol: str = bar.symbol
         exchange: Exchange = bar.exchange
         interval: Interval = bar.interval
-        vt_symbol: str = bar.vt_symbol
+        count: int = 0
         table_name: str = "_".join(["bar", symbol, exchange.value, interval.value])
 
         # 以超级表为模版创建表，并存储k线数据
-        self.c1.execute(f"CREATE TABLE IF NOT EXISTS {table_name} USING s_bar TAGS ( '{symbol}', '{exchange.value}' )")
+        self.c1.execute(f"CREATE TABLE IF NOT EXISTS {table_name} USING s_bar (symbol, exchange, interval_, count) TAGS ( '{symbol}', '{exchange.value}', '{interval.value}', '{count}' )")
         self.insert_in_batch(table_name, bars, 1000)
 
         # 更新K线汇总数据
-        key: str = "_".join([vt_symbol, interval.value])
+        self.c1.execute(f"SELECT start_time, end_time, count FROM {table_name}")
+        results = self.c1.fetchall()
 
-        f = shelve.open(self.overview_filepath)
-        overview: Optional[BarOverview] = f.get(key, None)
+        overview = results[0]
+        overview_start = overview[0]
+        overview_end = overview[1]
+        overview_count = overview[2]
 
-        if not overview:
-            overview: BarOverview = BarOverview(
-                symbol=symbol,
-                exchange=exchange,
-                interval=interval
-            )
-            overview.count = len(bars)
-            overview.start = bars[0].datetime.astimezone(DB_TZ)
-            overview.end = bars[-1].datetime.astimezone(DB_TZ)
+        if not overview_count:
+            overview_start = bars[0].datetime.astimezone(DB_TZ)
+            overview_end = bars[-1].datetime.astimezone(DB_TZ)
+            overview_count = len(bars)
         else:
-            overview.start = min(overview.start, bars[0].datetime)
-            overview.end = max(overview.end, bars[-1].datetime)
-
-            table_name: str = "_".join(["bar", symbol, exchange.value, interval.value])
+            overview_start = min(overview_start, bars[0].datetime)
+            overview_end = max(overview_end, bars[-1].datetime)
             result = self.conn.query(f"select count(*) from {table_name}")
             count: List[dict] = result.fetch_all_into_dict()
             bar_count: int = count[0]["count(*)"]
+            overview_count = bar_count
 
-            overview.count = bar_count
-
-        f[key] = overview
-        f.close()
+        self.c1.execute(f"ALTER TABLE {table_name} SET TAG start_time='{overview_start}';")
+        self.c1.execute(f"ALTER TABLE {table_name} SET TAG end_time='{overview_end}';")
+        self.c1.execute(f"ALTER TABLE {table_name} SET TAG count='{overview_count}';")
 
         return True
 
@@ -115,7 +110,7 @@ class TdengineDatabase(BaseDatabase):
         """读取K线数据"""
         table_name: str = "_".join(["bar", symbol, exchange.value, interval.value])
 
-        data = self.conn.query(f"select * from {table_name} WHERE datetime BETWEEN '{start}' AND '{end}'")
+        data = self.conn.query(f"select *, interval_ from {table_name} WHERE datetime BETWEEN '{start}' AND '{end}'")
 
         bars: List[BarData] = []
         for d in data:
@@ -124,14 +119,14 @@ class TdengineDatabase(BaseDatabase):
                 symbol=symbol,
                 exchange=exchange,
                 datetime=dt,
-                interval=Interval(d[1]),
-                volume=d[2],
-                turnover=d[3],
-                open_interest=d[4],
-                open_price=d[5],
-                high_price=d[6],
-                low_price=d[7],
-                close_price=d[8],
+                interval=Interval(d[8]),
+                volume=d[1],
+                turnover=d[2],
+                open_interest=d[3],
+                open_price=d[4],
+                high_price=d[5],
+                low_price=d[6],
+                close_price=d[7],
                 gateway_name="DB"
             )
             bars.append(bar)
@@ -211,14 +206,6 @@ class TdengineDatabase(BaseDatabase):
         # 删除K线数据
         self.c1.execute(f"DROP TABLE {table_name}")
 
-        # 删除K线汇总
-        f = shelve.open(self.overview_filepath)
-        vt_symbol: str = generate_vt_symbol(symbol, exchange)
-        key: str = "_".join([vt_symbol, interval.value])
-        if key in f:
-            f.pop(key)
-        f.close()
-
         return count
 
     def delete_tick_data(
@@ -240,10 +227,20 @@ class TdengineDatabase(BaseDatabase):
 
     def get_bar_overview(self) -> List[BarOverview]:
         """查询K线汇总信息"""
-        f = shelve.open(self.overview_filepath)
-        overviews = list(f.values())
-        f.close()
+        overviews: list[BarOverview] = []
 
+        self.c1.execute("SELECT symbol, exchange, interval_, start_time, end_time, count FROM s_bar")
+        results = self.c1.fetchall()
+        for i in results:
+            overview: BarOverview = BarOverview(
+                symbol=i[0],
+                exchange=i[1],
+                interval=i[2],
+                start=i[3],
+                end=i[4],
+                count=i[5],
+            )
+            overviews.append(overview)
         return overviews
 
     def insert_in_batch(self, table_name: str, data_set: list, batch_size: int) -> None:
@@ -271,8 +268,8 @@ class TdengineDatabase(BaseDatabase):
 
 
 def generate_bar(bar: BarData) -> str:
-    result: str = (f"('{convert_tz(bar.datetime)}', '{bar.interval.value}', {bar.volume}, {bar.turnover}, "
-                   + f"{bar.open_interest}, {bar.open_price}, {bar.high_price}, {bar.low_price}, {bar.close_price})")
+    result: str = (f"('{convert_tz(bar.datetime)}', {bar.volume}, {bar.turnover}, {bar.open_interest},"
+                   + f"{bar.open_price}, {bar.high_price}, {bar.low_price}, {bar.close_price})")
     return result
 
 
