@@ -1,13 +1,14 @@
 from datetime import datetime
-from typing import List
+from typing import Callable, List
 
 import taos
-from vnpy.trader.database import BaseDatabase, BarOverview, DB_TZ, convert_tz
-from vnpy.trader.object import (
-    BarData,
-    TickData,
-    Exchange,
-    Interval
+
+from vnpy.trader.constant import Exchange, Interval
+from vnpy.trader.object import BarData, TickData
+from vnpy.trader.database import (
+    BaseDatabase,
+    BarOverview,
+    DB_TZ
 )
 from vnpy.trader.setting import SETTINGS
 
@@ -30,7 +31,8 @@ class TdengineDatabase(BaseDatabase):
         self.config: str = "/etc/taos"
         self.timezone: str = SETTINGS["database.timezone"]
 
-        self.conn = taos.connect(
+        # 连接数据库
+        self.conn: taos.TaosConnection = taos.connect(
             host=self.host,
             user=self.user,
             password=self.password,
@@ -39,63 +41,75 @@ class TdengineDatabase(BaseDatabase):
             timezone=self.timezone
         )
 
-        self.c1 = self.conn.cursor()
+        self.cursor: taos.TaosCursor = self.conn.cursor()
 
-        self.c1.execute(CREATE_DATABASE_SCRIPT)
-        self.c1.execute("use vnpy")
-        self.c1.execute(CREATE_BAR_TABLE_SCRIPT)
-        self.c1.execute(CREATE_TICK_TABLE_SCRIPT)
+        # 初始化创建数据库和数据表
+        self.cursor.execute(CREATE_DATABASE_SCRIPT)
+        self.cursor.execute("use vnpy")
+        self.cursor.execute(CREATE_BAR_TABLE_SCRIPT)
+        self.cursor.execute(CREATE_TICK_TABLE_SCRIPT)
 
     def save_bar_data(self, bars: List[BarData]) -> bool:
         """保存k线数据"""
-        # 读取主键参数
+        # 缓存字段参数
         bar: BarData = bars[0]
         symbol: str = bar.symbol
         exchange: Exchange = bar.exchange
         interval: Interval = bar.interval
+
         count: int = 0
         table_name: str = "_".join(["bar", symbol, exchange.value, interval.value])
 
-        # 以超级表为模版创建表，并存储k线数据
-        self.c1.execute(f"CREATE TABLE IF NOT EXISTS {table_name} USING s_bar (symbol, exchange, interval_, count) TAGS ( '{symbol}', '{exchange.value}', '{interval.value}', '{count}' )")
+        # 以超级表为模版创建表
+        self.cursor.execute(f"""
+            CREATE TABLE IF NOT EXISTS {table_name}
+            USING s_bar(symbol, exchange, interval_, count)
+            TAGS('{symbol}', '{exchange.value}', '{interval.value}', '{count}')
+            """)
+
+        # 写入k线数据
         self.insert_in_batch(table_name, bars, 1000)
 
-        # 更新K线汇总数据
-        self.c1.execute(f"SELECT start_time, end_time, count FROM {table_name}")
-        results = self.c1.fetchall()
+        # 查询汇总信息
+        self.cursor.execute(f"SELECT start_time, end_time, count FROM {table_name}")
+        results: List[tuple] = self.cursor.fetchall()
 
-        overview = results[0]
-        overview_start = overview[0]
-        overview_end = overview[1]
-        overview_count = overview[2]
+        overview: tuple = results[0]
+        overview_start: datetime = overview[0]
+        overview_end: datetime = overview[1]
+        overview_count: int = int(overview[2])
 
+        # 没有该合约
         if not overview_count:
-            overview_start = bars[0].datetime.astimezone(DB_TZ)
-            overview_end = bars[-1].datetime.astimezone(DB_TZ)
-            overview_count = len(bars)
+            overview_start: datetime = bars[0].datetime.astimezone(DB_TZ)
+            overview_end: datetime = bars[-1].datetime.astimezone(DB_TZ)
+            overview_count: int = len(bars)
+        # 已有该合约
         else:
-            overview_start = min(overview_start, bars[0].datetime)
-            overview_end = max(overview_end, bars[-1].datetime)
-            self.c1.execute(f"select count(*) from {table_name}")
+            overview_start: datetime = min(overview_start, bars[0].datetime)
+            overview_end: datetime = max(overview_end, bars[-1].datetime)
 
-            results = self.c1.fetchall()
-            bar_count: int = results[0][0]
-            overview_count = bar_count
+            self.cursor.execute(f"select count(*) from {table_name}")
+            results: List[tuple] = self.cursor.fetchall()
 
-        self.c1.execute(f"ALTER TABLE {table_name} SET TAG start_time='{overview_start}';")
-        self.c1.execute(f"ALTER TABLE {table_name} SET TAG end_time='{overview_end}';")
-        self.c1.execute(f"ALTER TABLE {table_name} SET TAG count='{overview_count}';")
+            bar_count: int = int(results[0][0])
+            overview_count: int = bar_count
+
+        # 更新汇总信息
+        self.cursor.execute(f"ALTER TABLE {table_name} SET TAG start_time='{overview_start}';")
+        self.cursor.execute(f"ALTER TABLE {table_name} SET TAG end_time='{overview_end}';")
+        self.cursor.execute(f"ALTER TABLE {table_name} SET TAG count='{overview_count}';")
 
         return True
 
     def save_tick_data(self, ticks: List[TickData]) -> bool:
-        """保存TICK数据"""
+        """保存tick数据"""
         bar: BarData = ticks[0]
         symbol: str = bar.symbol
         exchange: Exchange = bar.exchange
         table_name: str = "_".join(["tick", symbol, exchange.value])
 
-        self.c1.execute(f"CREATE TABLE IF NOT EXISTS {table_name} USING s_tick TAGS ( '{symbol}', '{exchange.value}' )")
+        self.cursor.execute(f"CREATE TABLE IF NOT EXISTS {table_name} USING s_tick TAGS ( '{symbol}', '{exchange.value}' )")
         self.insert_in_batch(table_name, ticks, 1000)
 
         return True
@@ -109,18 +123,21 @@ class TdengineDatabase(BaseDatabase):
         end: datetime
     ) -> List[BarData]:
         """读取K线数据"""
+        # 生成数据表名
         table_name: str = "_".join(["bar", symbol, exchange.value, interval.value])
 
-        self.c1.execute(f"select *, interval_ from {table_name} WHERE datetime BETWEEN '{start}' AND '{end}'")
-        data: list = self.c1.fetchall()
+        # 从数据库读取数据
+        self.cursor.execute(f"select *, interval_ from {table_name} WHERE datetime BETWEEN '{start}' AND '{end}'")
+        data: List[tuple] = self.cursor.fetchall()
 
+        # 返回BarData列表
         bars: List[BarData] = []
+
         for d in data:
-            dt: datetime = d[0].astimezone(DB_TZ)
             bar: BarData = BarData(
                 symbol=symbol,
                 exchange=exchange,
-                datetime=dt,
+                datetime=d[0],
                 interval=Interval(d[8]),
                 volume=d[1],
                 turnover=d[2],
@@ -142,19 +159,22 @@ class TdengineDatabase(BaseDatabase):
         start: datetime,
         end: datetime
     ) -> List[TickData]:
-        """读取TICK数据"""
+        """读取tick数据"""
+        # 生成数据表名
         table_name: str = "_".join(["tick", symbol, exchange.value])
 
-        self.c1.execute(f"select * from {table_name} WHERE datetime BETWEEN '{start}' AND '{end}'")
-        data: list = self.c1.fetchall()
+        # 从数据库读取数据
+        self.cursor.execute(f"select * from {table_name} WHERE datetime BETWEEN '{start}' AND '{end}'")
+        data: List[tuple] = self.cursor.fetchall()
 
+        # 返回TickData列表
         ticks: List[TickData] = []
+
         for d in data:
-            dt: datetime = d[0].astimezone(DB_TZ)
             tick: TickData = TickData(
                 symbol=symbol,
                 exchange=exchange,
-                datetime=dt,
+                datetime=d[0],
                 name=d[1],
                 volume=d[2],
                 turnover=d[3],
@@ -200,15 +220,16 @@ class TdengineDatabase(BaseDatabase):
         interval: Interval
     ) -> int:
         """删除K线数据"""
+        # 生成数据表名
         table_name: str = "_".join(["bar", symbol, exchange.value, interval.value])
 
-        # 查询K线数量
-        self.c1.execute(f"select count(*) from {table_name}")
-        result: list = self.c1.fetchall()
-        count: int = result[0][0]
+        # 查询数据条数
+        self.cursor.execute(f"select count(*) from {table_name}")
+        result: list = self.cursor.fetchall()
+        count: int = int(result[0][0])
 
-        # 删除K线数据
-        self.c1.execute(f"DROP TABLE {table_name}")
+        # 执行K线删除
+        self.cursor.execute(f"DROP TABLE {table_name}")
 
         return count
 
@@ -217,44 +238,48 @@ class TdengineDatabase(BaseDatabase):
         symbol: str,
         exchange: Exchange
     ) -> int:
-        """删除TICK数据"""
+        """删除tick数据"""
+        # 生成数据表名
         table_name: str = "_".join(["tick", symbol, exchange.value])
 
-        # 查询TICK数量
-        self.c1.execute(f"select count(*) from {table_name}")
-        result: list = self.c1.fetchall()
-        count: int = result[0][0]
+        # 查询数据条数
+        self.cursor.execute(f"select count(*) from {table_name}")
+        result: list = self.cursor.fetchall()
+        count: int = int(result[0][0])
 
-        # 删除TICK数据
-        self.c1.execute(f"DROP TABLE {table_name}")
+        # 删除tick数据
+        self.cursor.execute(f"DROP TABLE {table_name}")
 
         return count
 
     def get_bar_overview(self) -> List[BarOverview]:
         """查询K线汇总信息"""
-        overviews: list[BarOverview] = []
+        # 从数据库读取数据
+        self.cursor.execute("SELECT symbol, exchange, interval_, start_time, end_time, count FROM s_bar")
+        results: List[tuple] = self.cursor.fetchall()
 
-        self.c1.execute("SELECT symbol, exchange, interval_, start_time, end_time, count FROM s_bar")
-        results = self.c1.fetchall()
+        # 返回BarOverview列表
+        overviews: list[BarOverview] = []
 
         for i in results:
             overview: BarOverview = BarOverview(
                 symbol=i[0],
-                exchange=i[1],
-                interval=i[2],
+                exchange=Exchange(i[1]),
+                interval=Interval(i[2]),
                 start=i[3],
                 end=i[4],
-                count=i[5],
+                count=int(i[5]),
             )
             overviews.append(overview)
+
         return overviews
 
     def insert_in_batch(self, table_name: str, data_set: list, batch_size: int) -> None:
         """数据批量插入数据库"""
         if table_name.split("_")[0] == "bar":
-            generate = generate_bar
+            generate: Callable = generate_bar
         else:
-            generate = generate_tick
+            generate: Callable = generate_tick
 
         data: List[str] = [f"insert into {table_name} values"]
         count: int = 0
@@ -264,28 +289,33 @@ class TdengineDatabase(BaseDatabase):
                 data.append(generate(d))
                 count += 1
             else:
-                self.c1.execute(" ".join(data))
+                self.cursor.execute(" ".join(data))
 
                 data: List[str] = [f"insert into {table_name} values"]
                 count = 0
 
         if count != 0:
-            self.c1.execute(" ".join(data))
+            self.cursor.execute(" ".join(data))
 
 
 def generate_bar(bar: BarData) -> str:
-    result: str = (f"('{convert_tz(bar.datetime)}', {bar.volume}, {bar.turnover}, {bar.open_interest},"
+    """将BarData转换为可存储的字符串"""
+    result: str = (f"('{bar.datetime}', {bar.volume}, {bar.turnover}, {bar.open_interest},"
                    + f"{bar.open_price}, {bar.high_price}, {bar.low_price}, {bar.close_price})")
+
     return result
 
 
 def generate_tick(tick: TickData) -> str:
-    dt = convert_tz(tick.datetime)
+    """将TickData转换为可存储的字符串"""
+    # tick不带localtime
     if tick.localtime:
-        localtime = tick.localtime
+        localtime: datetime = tick.localtime
+    # tick带localtime
     else:
-        localtime = dt
-    result: str = (f"('{dt}', '{tick.name}', {tick.volume}, {tick.turnover}, "
+        localtime: datetime = tick.datetime
+
+    result: str = (f"('{tick.datetime}', '{tick.name}', {tick.volume}, {tick.turnover}, "
                    + f"{tick.open_interest}, {tick.last_price}, {tick.last_volume}, "
                    + f"{tick.limit_up}, {tick.limit_down}, {tick.open_price}, {tick.high_price}, {tick.low_price}, {tick.pre_close}, "
                    + f"{tick.bid_price_1}, {tick.bid_price_2}, {tick.bid_price_3}, {tick.bid_price_4}, {tick.bid_price_5}, "
@@ -293,4 +323,5 @@ def generate_tick(tick: TickData) -> str:
                    + f"{tick.bid_volume_1}, {tick.bid_volume_2}, {tick.bid_volume_3}, {tick.bid_volume_4}, {tick.bid_volume_5}, "
                    + f"{tick.ask_volume_1}, {tick.ask_volume_2}, {tick.ask_volume_3}, {tick.ask_volume_4}, {tick.ask_volume_5}, "
                    + f"'{localtime}')")
+
     return result
