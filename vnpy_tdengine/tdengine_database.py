@@ -30,6 +30,7 @@ class TdengineDatabase(BaseDatabase):
         self.port: int = SETTINGS["database.port"]
         self.config: str = "/etc/taos"
         self.timezone: str = SETTINGS["database.timezone"]
+        self.database: str = SETTINGS["database.database"]
 
         # 连接数据库
         self.conn: taos.TaosConnection = taos.connect(
@@ -44,8 +45,8 @@ class TdengineDatabase(BaseDatabase):
         self.cursor: taos.TaosCursor = self.conn.cursor()
 
         # 初始化创建数据库和数据表
-        self.cursor.execute(CREATE_DATABASE_SCRIPT)
-        self.cursor.execute("use vnpy")
+        self.cursor.execute(CREATE_DATABASE_SCRIPT.format(self.database))
+        self.cursor.execute(f"use {self.database}")
         self.cursor.execute(CREATE_BAR_TABLE_SCRIPT)
         self.cursor.execute(CREATE_TICK_TABLE_SCRIPT)
 

@@ -4,7 +4,7 @@ Tdengine脚本, 用于在Tdengine中创建数据库和数据表。
 
 # 创建数据库
 CREATE_DATABASE_SCRIPT = """
-CREATE DATABASE IF NOT EXISTS vnpy KEEP 36500 UPDATE 2
+CREATE DATABASE IF NOT EXISTS {} KEEP 36500 UPDATE 2
 """
 
 # 创建bar超级表
