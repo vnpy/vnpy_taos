@@ -2,6 +2,8 @@ from datetime import datetime
 from typing import Callable, List
 
 import taos
+import pandas
+from pandas import DataFrame
 
 from vnpy.trader.constant import Exchange, Interval
 from vnpy.trader.object import BarData, TickData
@@ -105,7 +107,7 @@ class TdengineDatabase(BaseDatabase):
 
     def save_tick_data(self, ticks: List[TickData]) -> bool:
         """保存tick数据"""
-        bar: BarData = ticks[0]
+        bar: TickData = ticks[0]
         symbol: str = bar.symbol
         exchange: Exchange = bar.exchange
         table_name: str = "_".join(["tick", symbol, exchange.value])
@@ -128,25 +130,24 @@ class TdengineDatabase(BaseDatabase):
         table_name: str = "_".join(["bar", symbol, exchange.value, interval.value])
 
         # 从数据库读取数据
-        self.cursor.execute(f"select *, interval_ from {table_name} WHERE datetime BETWEEN '{start}' AND '{end}'")
-        data: List[tuple] = self.cursor.fetchall()
+        df: DataFrame = pandas.read_sql(f"select *, interval_ from {table_name} WHERE datetime BETWEEN '{start}' AND '{end}'", self.conn)
 
         # 返回BarData列表
         bars: List[BarData] = []
 
-        for d in data:
+        for row in df.itertuples():
             bar: BarData = BarData(
                 symbol=symbol,
                 exchange=exchange,
-                datetime=d[0],
-                interval=Interval(d[8]),
-                volume=d[1],
-                turnover=d[2],
-                open_interest=d[3],
-                open_price=d[4],
-                high_price=d[5],
-                low_price=d[6],
-                close_price=d[7],
+                datetime=row.datetime.astimezone(DB_TZ),
+                interval=Interval(row.interval_),
+                volume=row.volume,
+                turnover=row.turnover,
+                open_interest=row.open_interest,
+                open_price=row.open_price,
+                high_price=row.high_price,
+                low_price=row.low_price,
+                close_price=row.close_price,
                 gateway_name="DB"
             )
             bars.append(bar)
@@ -165,49 +166,48 @@ class TdengineDatabase(BaseDatabase):
         table_name: str = "_".join(["tick", symbol, exchange.value])
 
         # 从数据库读取数据
-        self.cursor.execute(f"select * from {table_name} WHERE datetime BETWEEN '{start}' AND '{end}'")
-        data: List[tuple] = self.cursor.fetchall()
+        df: DataFrame = pandas.read_sql(f"select * from {table_name} WHERE datetime BETWEEN '{start}' AND '{end}'", self.conn)
 
         # 返回TickData列表
         ticks: List[TickData] = []
 
-        for d in data:
+        for row in df.itertuples():
             tick: TickData = TickData(
                 symbol=symbol,
                 exchange=exchange,
-                datetime=d[0],
-                name=d[1],
-                volume=d[2],
-                turnover=d[3],
-                open_interest=d[4],
-                last_price=d[5],
-                limit_up=d[6],
-                limit_down=d[7],
-                open_price=d[8],
-                high_price=d[9],
-                low_price=d[10],
-                pre_close=d[11],
-                bid_price_1=d[12],
-                bid_price_2=d[13],
-                bid_price_3=d[14],
-                bid_price_4=d[15],
-                bid_price_5=d[16],
-                ask_price_1=d[17],
-                ask_price_2=d[18],
-                ask_price_3=d[19],
-                ask_price_4=d[20],
-                ask_price_5=d[21],
-                bid_volume_1=d[22],
-                bid_volume_2=d[23],
-                bid_volume_3=d[24],
-                bid_volume_4=d[25],
-                bid_volume_5=d[26],
-                ask_volume_1=d[27],
-                ask_volume_2=d[28],
-                ask_volume_3=d[29],
-                ask_volume_4=d[30],
-                ask_volume_5=d[31],
-                localtime=d[32],
+                datetime=row.datetime.astimezone(DB_TZ),
+                name=row.name,
+                volume=row.volume,
+                turnover=row.turnover,
+                open_interest=row.open_interest,
+                last_price=row.last_price,
+                limit_up=row.limit_up,
+                limit_down=row.limit_down,
+                open_price=row.open_price,
+                high_price=row.high_price,
+                low_price=row.last_price,
+                pre_close=row.pre_close,
+                bid_price_1=row.bid_price_1,
+                bid_price_2=row.bid_price_2,
+                bid_price_3=row.bid_price_3,
+                bid_price_4=row.bid_price_4,
+                bid_price_5=row.bid_price_5,
+                ask_price_1=row.ask_price_1,
+                ask_price_2=row.ask_price_2,
+                ask_price_3=row.ask_price_3,
+                ask_price_4=row.ask_price_4,
+                ask_price_5=row.ask_price_5,
+                bid_volume_1=row.bid_volume_1,
+                bid_volume_2=row.bid_volume_2,
+                bid_volume_3=row.bid_volume_3,
+                bid_volume_4=row.bid_volume_4,
+                bid_volume_5=row.bid_volume_5,
+                ask_volume_1=row.ask_volume_1,
+                ask_volume_2=row.ask_volume_2,
+                ask_volume_3=row.ask_volume_3,
+                ask_volume_4=row.ask_volume_4,
+                ask_volume_5=row.ask_volume_5,
+                localtime=row.localtime,
                 gateway_name="DB"
             )
             ticks.append(tick)
@@ -256,20 +256,19 @@ class TdengineDatabase(BaseDatabase):
     def get_bar_overview(self) -> List[BarOverview]:
         """查询K线汇总信息"""
         # 从数据库读取数据
-        self.cursor.execute("SELECT symbol, exchange, interval_, start_time, end_time, count FROM s_bar")
-        results: List[tuple] = self.cursor.fetchall()
+        df: DataFrame = pandas.read_sql("SELECT symbol, exchange, interval_, start_time, end_time, count FROM s_bar", self.conn)
 
         # 返回BarOverview列表
         overviews: list[BarOverview] = []
 
-        for i in results:
+        for row in df.itertuples():
             overview: BarOverview = BarOverview(
-                symbol=i[0],
-                exchange=Exchange(i[1]),
-                interval=Interval(i[2]),
-                start=i[3],
-                end=i[4],
-                count=int(i[5]),
+                symbol=row.symbol,
+                exchange=Exchange(row.exchange),
+                interval=Interval(row.interval_),
+                start=row.start_time.astimezone(DB_TZ),
+                end=row.end_time.astimezone(DB_TZ),
+                count=int(row.count),
             )
             overviews.append(overview)
 
