@@ -7,12 +7,12 @@
 <p align="center">
     <img src ="https://img.shields.io/badge/version-2.2.2.0-blueviolet.svg"/>
     <img src ="https://img.shields.io/badge/platform-windows|linux-yellow.svg"/>
-    <img src ="https://img.shields.io/badge/python-3.7｜3.9｜3.9｜3.10-blue.svg" />
+    <img src ="https://img.shields.io/badge/python-3.7|3.9|3.9|3.10-blue.svg" />
 </p>
 
 ## 说明
 
-基于TDengine的python连接器taospy开发的TDengine数据库接口。
+基于TDengine的Python连接器taospy开发的TDengine数据库接口。
 
 **需要使用TDengine 2.4.0.16以上版本。**
 

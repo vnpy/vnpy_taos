@@ -23,9 +23,9 @@
 
 import importlib_metadata
 
-from .tdengine_database import TdengineDatabase as Database
+from .taos_database import TaosDatabase as Database
 
 try:
-    __version__ = importlib_metadata.version("vnpy_tdengine")
+    __version__ = importlib_metadata.version("vnpy_taos")
 except importlib_metadata.PackageNotFoundError:
     __version__ = "dev"

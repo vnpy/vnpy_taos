@@ -14,15 +14,15 @@ from vnpy.trader.database import (
 )
 from vnpy.trader.setting import SETTINGS
 
-from .tdengine_script import (
+from .taos_script import (
     CREATE_DATABASE_SCRIPT,
     CREATE_BAR_TABLE_SCRIPT,
     CREATE_TICK_TABLE_SCRIPT,
 )
 
 
-class TdengineDatabase(BaseDatabase):
-    """Tdengine数据库接口"""
+class TaosDatabase(BaseDatabase):
+    """TDengine数据库接口"""
 
     def __init__(self) -> None:
         """构造函数"""
