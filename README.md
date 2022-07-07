@@ -22,9 +22,9 @@
 
 |名称|含义|必填|举例|
 |---------|----|---|---|
-|database.name|名称|是|tdengine|
+|database.name|名称|是|taos|
 |database.host|地址|是|localhost|
-|database.port|端口|是|6030或者0|
+|database.port|端口|是|6030|
 |database.database|实例|是|vnpy|
 |database.user|用户名|是|root|
 |database.password|密码|是|taosdata|
@@ -89,3 +89,5 @@ TDengine使用FQDN来验证服务器地址，连接前可参考文章[保姆级�
 **FQDN配置问题**
 
 除了在Linux连接本地数据库之外，TDengine都需要使用FQDN来验证服务器地址。若运行时出现“unable to resolve FQDN”提示时，可以检查是否有在客户端所在主机配置FQDN。
+
+**请注意，如果配置了FQDN，请将配置的hostname填入全局配置的database.host参数中。**
