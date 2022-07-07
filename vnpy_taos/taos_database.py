@@ -30,7 +30,6 @@ class TaosDatabase(BaseDatabase):
         self.password: str = SETTINGS["database.password"]
         self.host: str = SETTINGS["database.host"]
         self.port: int = SETTINGS["database.port"]
-        self.config: str = "/etc/taos"
         self.timezone: str = SETTINGS["database.timezone"]
         self.database: str = SETTINGS["database.database"]
 
@@ -40,7 +39,6 @@ class TaosDatabase(BaseDatabase):
             user=self.user,
             password=self.password,
             port=self.port,
-            config=self.config,
             timezone=self.timezone
         )
 
