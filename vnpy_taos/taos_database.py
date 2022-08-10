@@ -10,6 +10,7 @@ from vnpy.trader.object import BarData, TickData
 from vnpy.trader.database import (
     BaseDatabase,
     BarOverview,
+    TickOverview,
     DB_TZ
 )
 from vnpy.trader.setting import SETTINGS
@@ -105,13 +106,45 @@ class TaosDatabase(BaseDatabase):
 
     def save_tick_data(self, ticks: List[TickData]) -> bool:
         """保存tick数据"""
-        bar: TickData = ticks[0]
-        symbol: str = bar.symbol
-        exchange: Exchange = bar.exchange
+        tick: TickData = ticks[0]
+        symbol: str = tick.symbol
+        exchange: Exchange = tick.exchange
+
+        count: int = 0
         table_name: str = "_".join(["tick", symbol, exchange.value])
 
-        self.cursor.execute(f"CREATE TABLE IF NOT EXISTS {table_name} USING s_tick TAGS ( '{symbol}', '{exchange.value}' )")
+        self.cursor.execute(f"CREATE TABLE IF NOT EXISTS {table_name} USING s_tick(symbol, exchange, count) TAGS ( '{symbol}', '{exchange.value}', '{count}')")
         self.insert_in_batch(table_name, ticks, 1000)
+
+        # 查询Tick汇总信息
+        self.cursor.execute(f"SELECT start_time, end_time, count FROM {table_name}")
+        results: List[tuple] = self.cursor.fetchall()
+
+        overview: tuple = results[0]
+        overview_start: datetime = overview[0]
+        overview_end: datetime = overview[1]
+        overview_count: int = int(overview[2])
+
+        # 没有该合约
+        if not overview_count:
+            overview_start: datetime = ticks[0].datetime.astimezone(DB_TZ)
+            overview_end: datetime = ticks[-1].datetime.astimezone(DB_TZ)
+            overview_count: int = len(ticks)
+        # 已有该合约
+        else:
+            overview_start: datetime = min(overview_start, ticks[0].datetime)
+            overview_end: datetime = max(overview_end, ticks[-1].datetime)
+
+            self.cursor.execute(f"select count(*) from {table_name}")
+            results: List[tuple] = self.cursor.fetchall()
+
+            tick_count: int = int(results[0][0])
+            overview_count: int = tick_count
+
+        # 更新汇总信息
+        self.cursor.execute(f"ALTER TABLE {table_name} SET TAG start_time='{overview_start}';")
+        self.cursor.execute(f"ALTER TABLE {table_name} SET TAG end_time='{overview_end}';")
+        self.cursor.execute(f"ALTER TABLE {table_name} SET TAG count='{overview_count}';")
 
         return True
 
@@ -266,6 +299,26 @@ class TaosDatabase(BaseDatabase):
                 interval=Interval(row.interval_),
                 start=row.start_time.astimezone(DB_TZ),
                 end=row.end_time.astimezone(DB_TZ),
+                count=int(row.count),
+            )
+            overviews.append(overview)
+
+        return overviews
+
+    def get_tick_overview(self) -> List[TickOverview]:
+        """查询Tick汇总信息"""
+        # 从数据库读取数据
+        df: DataFrame = pandas.read_sql("SELECT symbol, exchange, start_time, end_time, count FROM s_tick", self.conn)
+
+        # TickOverview
+        overviews: list[TickOverview] = []
+
+        for row in df.itertuples():
+            overview: TickOverview = TickOverview(
+                symbol=row.symbol,
+                exchange=Exchange(row.exchange),
+                start=row.start_time.astimezone(DB_TZ.key),
+                end=row.end_time.astimezone(DB_TZ.key),
                 count=int(row.count),
             )
             overviews.append(overview)
