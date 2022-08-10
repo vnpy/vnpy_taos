@@ -51,7 +51,7 @@ class TaosDatabase(BaseDatabase):
         self.cursor.execute(CREATE_BAR_TABLE_SCRIPT)
         self.cursor.execute(CREATE_TICK_TABLE_SCRIPT)
 
-    def save_bar_data(self, bars: List[BarData]) -> bool:
+    def save_bar_data(self, bars: List[BarData], stream: bool = False) -> bool:
         """保存k线数据"""
         # 缓存字段参数
         bar: BarData = bars[0]
@@ -87,6 +87,9 @@ class TaosDatabase(BaseDatabase):
             overview_end: datetime = bars[-1].datetime.astimezone(DB_TZ)
             overview_count: int = len(bars)
         # 已有该合约
+        elif stream:
+            overview_end: datetime = bars[-1].datetime.astimezone(DB_TZ)
+            overview_count += len(bars)
         else:
             overview_start: datetime = min(overview_start, bars[0].datetime)
             overview_end: datetime = max(overview_end, bars[-1].datetime)
@@ -104,7 +107,7 @@ class TaosDatabase(BaseDatabase):
 
         return True
 
-    def save_tick_data(self, ticks: List[TickData]) -> bool:
+    def save_tick_data(self, ticks: List[TickData], stream: bool = False) -> bool:
         """保存tick数据"""
         tick: TickData = ticks[0]
         symbol: str = tick.symbol
@@ -131,6 +134,9 @@ class TaosDatabase(BaseDatabase):
             overview_end: datetime = ticks[-1].datetime.astimezone(DB_TZ)
             overview_count: int = len(ticks)
         # 已有该合约
+        elif stream:
+            overview_end: datetime = ticks[-1].datetime.astimezone(DB_TZ)
+            overview_count += len(ticks)
         else:
             overview_start: datetime = min(overview_start, ticks[0].datetime)
             overview_end: datetime = max(overview_end, ticks[-1].datetime)
