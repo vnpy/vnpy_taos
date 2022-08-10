@@ -89,3 +89,5 @@ TDengine使用FQDN来验证服务器地址，连接前可参考文章[保姆级�
 **FQDN配置问题**
 
 除了在Linux连接本地数据库之外，TDengine都需要使用FQDN来验证服务器地址。若运行时出现“unable to resolve FQDN”提示时，可以检查是否有在客户端所在主机配置FQDN。
+
+当使用docker启动Tdengine时，客户端中FQDN中配置的hostname应使用启用的docker的hostname
