@@ -69,6 +69,9 @@ CREATE STABLE IF NOT EXISTS s_tick (
     )
 TAGS(
     symbol BINARY(20),
-    exchange BINARY(10)
+    exchange BINARY(10),
+    start_time TIMESTAMP,
+    end_time TIMESTAMP,
+    count DOUBLE
     )
 """
