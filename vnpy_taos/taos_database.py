@@ -176,7 +176,7 @@ class TaosDatabase(BaseDatabase):
             bar: BarData = BarData(
                 symbol=symbol,
                 exchange=exchange,
-                datetime=row.datetime.astimezone(DB_TZ),
+                datetime=row.datetime.astimezone(DB_TZ.key),
                 interval=Interval(row.interval_),
                 volume=row.volume,
                 turnover=row.turnover,
@@ -212,7 +212,7 @@ class TaosDatabase(BaseDatabase):
             tick: TickData = TickData(
                 symbol=symbol,
                 exchange=exchange,
-                datetime=row.datetime.astimezone(DB_TZ),
+                datetime=row.datetime.astimezone(DB_TZ.key),
                 name=row.name,
                 volume=row.volume,
                 turnover=row.turnover,
@@ -303,8 +303,8 @@ class TaosDatabase(BaseDatabase):
                 symbol=row.symbol,
                 exchange=Exchange(row.exchange),
                 interval=Interval(row.interval_),
-                start=row.start_time.astimezone(DB_TZ),
-                end=row.end_time.astimezone(DB_TZ),
+                start=row.start_time.astimezone(DB_TZ.key),
+                end=row.end_time.astimezone(DB_TZ.key),
                 count=int(row.count),
             )
             overviews.append(overview)
