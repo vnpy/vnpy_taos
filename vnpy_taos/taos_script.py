@@ -18,15 +18,15 @@ CREATE STABLE IF NOT EXISTS s_bar (
     high_price DOUBLE,
     low_price DOUBLE,
     close_price DOUBLE
-    )
+)
 TAGS(
     symbol BINARY(20),
     exchange BINARY(10),
     interval_ BINARY(5),
     start_time TIMESTAMP,
     end_time TIMESTAMP,
-    count DOUBLE
-    )
+    count_ DOUBLE
+)
 """
 
 # 创建tick超级表
@@ -66,12 +66,12 @@ CREATE STABLE IF NOT EXISTS s_tick (
     ask_volume_4 DOUBLE,
     ask_volume_5 DOUBLE,
     localtime TIMESTAMP
-    )
+)
 TAGS(
     symbol BINARY(20),
     exchange BINARY(10),
     start_time TIMESTAMP,
     end_time TIMESTAMP,
-    count DOUBLE
-    )
+    count_ DOUBLE
+)
 """
