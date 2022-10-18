@@ -63,17 +63,18 @@ class TaosDatabase(BaseDatabase):
         table_name: str = "_".join(["bar", symbol, exchange.value, interval.value])
 
         # 以超级表为模版创建表
-        self.cursor.execute(f"""
-            CREATE TABLE IF NOT EXISTS {table_name}
-            USING s_bar(symbol, exchange, interval_, count)
-            TAGS('{symbol}', '{exchange.value}', '{interval.value}', '{count}')
-            """)
+        create_table_script: str = (
+            f"CREATE TABLE IF NOT EXISTS {table_name} "
+            "USING s_bar(symbol, exchange, interval_, count_) "
+            f"TAGS('{symbol}', '{exchange.value}', '{interval.value}', '{count}')"
+        )
+        self.cursor.execute(create_table_script)
 
         # 写入k线数据
         self.insert_in_batch(table_name, bars, 1000)
 
         # 查询汇总信息
-        self.cursor.execute(f"SELECT start_time, end_time, count FROM {table_name}")
+        self.cursor.execute(f"SELECT start_time, end_time, count_ FROM {table_name}")
         results: List[tuple] = self.cursor.fetchall()
 
         overview: tuple = results[0]
@@ -103,7 +104,7 @@ class TaosDatabase(BaseDatabase):
         # 更新汇总信息
         self.cursor.execute(f"ALTER TABLE {table_name} SET TAG start_time='{overview_start}';")
         self.cursor.execute(f"ALTER TABLE {table_name} SET TAG end_time='{overview_end}';")
-        self.cursor.execute(f"ALTER TABLE {table_name} SET TAG count='{overview_count}';")
+        self.cursor.execute(f"ALTER TABLE {table_name} SET TAG count_='{overview_count}';")
 
         return True
 
@@ -116,11 +117,19 @@ class TaosDatabase(BaseDatabase):
         count: int = 0
         table_name: str = "_".join(["tick", symbol, exchange.value])
 
-        self.cursor.execute(f"CREATE TABLE IF NOT EXISTS {table_name} USING s_tick(symbol, exchange, count) TAGS ( '{symbol}', '{exchange.value}', '{count}')")
+        # 以超级表为模版创建表
+        create_table_script: str = (
+            f"CREATE TABLE IF NOT EXISTS {table_name} "
+            "USING s_tick(symbol, exchange, count_) "
+            f"TAGS ( '{symbol}', '{exchange.value}', '{count}')"
+        )
+        self.cursor.execute(create_table_script)
+
+        # 写入tick数据
         self.insert_in_batch(table_name, ticks, 1000)
 
-        # 查询Tick汇总信息
-        self.cursor.execute(f"SELECT start_time, end_time, count FROM {table_name}")
+        # 查询汇总信息
+        self.cursor.execute(f"SELECT start_time, end_time, count_ FROM {table_name}")
         results: List[tuple] = self.cursor.fetchall()
 
         overview: tuple = results[0]
@@ -150,7 +159,7 @@ class TaosDatabase(BaseDatabase):
         # 更新汇总信息
         self.cursor.execute(f"ALTER TABLE {table_name} SET TAG start_time='{overview_start}';")
         self.cursor.execute(f"ALTER TABLE {table_name} SET TAG end_time='{overview_end}';")
-        self.cursor.execute(f"ALTER TABLE {table_name} SET TAG count='{overview_count}';")
+        self.cursor.execute(f"ALTER TABLE {table_name} SET TAG count_='{overview_count}';")
 
         return True
 
@@ -293,7 +302,7 @@ class TaosDatabase(BaseDatabase):
     def get_bar_overview(self) -> List[BarOverview]:
         """查询K线汇总信息"""
         # 从数据库读取数据
-        df: DataFrame = pandas.read_sql("SELECT symbol, exchange, interval_, start_time, end_time, count FROM s_bar", self.conn)
+        df: DataFrame = pandas.read_sql("SELECT symbol, exchange, interval_, start_time, end_time, count_ FROM s_bar", self.conn)
 
         # 返回BarOverview列表
         overviews: list[BarOverview] = []
@@ -305,7 +314,7 @@ class TaosDatabase(BaseDatabase):
                 interval=Interval(row.interval_),
                 start=row.start_time.astimezone(DB_TZ.key),
                 end=row.end_time.astimezone(DB_TZ.key),
-                count=int(row.count),
+                count=int(row.count_),
             )
             overviews.append(overview)
 
@@ -314,7 +323,7 @@ class TaosDatabase(BaseDatabase):
     def get_tick_overview(self) -> List[TickOverview]:
         """查询Tick汇总信息"""
         # 从数据库读取数据
-        df: DataFrame = pandas.read_sql("SELECT symbol, exchange, start_time, end_time, count FROM s_tick", self.conn)
+        df: DataFrame = pandas.read_sql("SELECT symbol, exchange, start_time, end_time, count_ FROM s_tick", self.conn)
 
         # TickOverview
         overviews: list[TickOverview] = []
@@ -325,7 +334,7 @@ class TaosDatabase(BaseDatabase):
                 exchange=Exchange(row.exchange),
                 start=row.start_time.astimezone(DB_TZ.key),
                 end=row.end_time.astimezone(DB_TZ.key),
-                count=int(row.count),
+                count=int(row.count_),
             )
             overviews.append(overview)
 
