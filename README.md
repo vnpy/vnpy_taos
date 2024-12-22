@@ -5,20 +5,20 @@
 </p>
 
 <p align="center">
-    <img src ="https://img.shields.io/badge/version-1.0.2-blueviolet.svg"/>
+    <img src ="https://img.shields.io/badge/version-1.0.3-blueviolet.svg"/>
     <img src ="https://img.shields.io/badge/platform-windows|linux-yellow.svg"/>
-    <img src ="https://img.shields.io/badge/python-3.7|3.9|3.9|3.10-blue.svg" />
+    <img src ="https://img.shields.io/badge/python-3.10|3.11|3.12-blue.svg" />
 </p>
 
 ## 说明
 
 基于TDengine的Python连接器taospy开发的TDengine数据库接口。
 
-**需要使用TDengine 2.4.0.16以上版本。**
+**需要使用TDengine 3.3.4.8以上版本。**
 
 ## 使用
 
-在veighna中使用TDengine时，需要在全局配置中填写以下字段信息：
+在VeighNa中使用TDengine时，需要在全局配置中填写以下字段信息：
 
 |名称|含义|必填|举例|
 |---------|----|---|---|
