@@ -1,9 +1,8 @@
 from datetime import datetime
-from typing import Callable, List
+from typing import Callable
 
 import taos
-import pandas
-from pandas import DataFrame
+import pandas as pd
 
 from vnpy.trader.constant import Exchange, Interval
 from vnpy.trader.object import BarData, TickData
@@ -11,7 +10,7 @@ from vnpy.trader.database import (
     BaseDatabase,
     BarOverview,
     TickOverview,
-    DB_TZ
+    DB_TZ,
 )
 from vnpy.trader.setting import SETTINGS
 
@@ -51,7 +50,7 @@ class TaosDatabase(BaseDatabase):
         self.cursor.execute(CREATE_BAR_TABLE_SCRIPT)
         self.cursor.execute(CREATE_TICK_TABLE_SCRIPT)
 
-    def save_bar_data(self, bars: List[BarData], stream: bool = False) -> bool:
+    def save_bar_data(self, bars: list[BarData], stream: bool = False) -> bool:
         """保存k线数据"""
         # 缓存字段参数
         bar: BarData = bars[0]
@@ -75,7 +74,7 @@ class TaosDatabase(BaseDatabase):
 
         # 查询汇总信息
         self.cursor.execute(f"SELECT start_time, end_time, count_ FROM {table_name}")
-        results: List[tuple] = self.cursor.fetchall()
+        results: list[tuple] = self.cursor.fetchall()
 
         overview: tuple = results[0]
         overview_start: datetime = overview[0]
@@ -96,7 +95,7 @@ class TaosDatabase(BaseDatabase):
             overview_end: datetime = max(overview_end, bars[-1].datetime)
 
             self.cursor.execute(f"select count(*) from {table_name}")
-            results: List[tuple] = self.cursor.fetchall()
+            results: list[tuple] = self.cursor.fetchall()
 
             bar_count: int = int(results[0][0])
             overview_count: int = bar_count
@@ -108,7 +107,7 @@ class TaosDatabase(BaseDatabase):
 
         return True
 
-    def save_tick_data(self, ticks: List[TickData], stream: bool = False) -> bool:
+    def save_tick_data(self, ticks: list[TickData], stream: bool = False) -> bool:
         """保存tick数据"""
         tick: TickData = ticks[0]
         symbol: str = tick.symbol
@@ -130,7 +129,7 @@ class TaosDatabase(BaseDatabase):
 
         # 查询汇总信息
         self.cursor.execute(f"SELECT start_time, end_time, count_ FROM {table_name}")
-        results: List[tuple] = self.cursor.fetchall()
+        results: list[tuple] = self.cursor.fetchall()
 
         overview: tuple = results[0]
         overview_start: datetime = overview[0]
@@ -151,7 +150,7 @@ class TaosDatabase(BaseDatabase):
             overview_end: datetime = max(overview_end, ticks[-1].datetime)
 
             self.cursor.execute(f"select count(*) from {table_name}")
-            results: List[tuple] = self.cursor.fetchall()
+            results: list[tuple] = self.cursor.fetchall()
 
             tick_count: int = int(results[0][0])
             overview_count: int = tick_count
@@ -170,16 +169,16 @@ class TaosDatabase(BaseDatabase):
         interval: Interval,
         start: datetime,
         end: datetime
-    ) -> List[BarData]:
+    ) -> list[BarData]:
         """读取K线数据"""
         # 生成数据表名
         table_name: str = "_".join(["bar", symbol, exchange.value, interval.value])
 
         # 从数据库读取数据
-        df: DataFrame = pandas.read_sql(f"select *, interval_ from {table_name} WHERE datetime BETWEEN '{start}' AND '{end}'", self.conn)
+        df: pd.DataFrame = pd.read_sql(f"select *, interval_ from {table_name} WHERE datetime BETWEEN '{start}' AND '{end}'", self.conn)
 
         # 返回BarData列表
-        bars: List[BarData] = []
+        bars: list[BarData] = []
 
         for row in df.itertuples():
             bar: BarData = BarData(
@@ -206,16 +205,16 @@ class TaosDatabase(BaseDatabase):
         exchange: Exchange,
         start: datetime,
         end: datetime
-    ) -> List[TickData]:
+    ) -> list[TickData]:
         """读取tick数据"""
         # 生成数据表名
         table_name: str = "_".join(["tick", symbol, exchange.value])
 
         # 从数据库读取数据
-        df: DataFrame = pandas.read_sql(f"select * from {table_name} WHERE datetime BETWEEN '{start}' AND '{end}'", self.conn)
+        df: pd.DataFrame = pd.read_sql(f"select * from {table_name} WHERE datetime BETWEEN '{start}' AND '{end}'", self.conn)
 
         # 返回TickData列表
-        ticks: List[TickData] = []
+        ticks: list[TickData] = []
 
         for row in df.itertuples():
             tick: TickData = TickData(
@@ -299,10 +298,10 @@ class TaosDatabase(BaseDatabase):
 
         return count
 
-    def get_bar_overview(self) -> List[BarOverview]:
+    def get_bar_overview(self) -> list[BarOverview]:
         """查询K线汇总信息"""
         # 从数据库读取数据
-        df: DataFrame = pandas.read_sql("SELECT DISTINCT symbol, exchange, interval_, start_time, end_time, count_ FROM s_bar", self.conn)
+        df: pd.DataFrame = pd.read_sql("SELECT DISTINCT symbol, exchange, interval_, start_time, end_time, count_ FROM s_bar", self.conn)
 
         # 返回BarOverview列表
         overviews: list[BarOverview] = []
@@ -320,10 +319,10 @@ class TaosDatabase(BaseDatabase):
 
         return overviews
 
-    def get_tick_overview(self) -> List[TickOverview]:
+    def get_tick_overview(self) -> list[TickOverview]:
         """查询Tick汇总信息"""
         # 从数据库读取数据
-        df: DataFrame = pandas.read_sql("SELECT DISTINCT symbol, exchange, start_time, end_time, count_ FROM s_tick", self.conn)
+        df: pd.DataFrame = pd.read_sql("SELECT DISTINCT symbol, exchange, start_time, end_time, count_ FROM s_tick", self.conn)
 
         # TickOverview
         overviews: list[TickOverview] = []
@@ -347,7 +346,7 @@ class TaosDatabase(BaseDatabase):
         else:
             generate: Callable = generate_tick
 
-        data: List[str] = [f"insert into {table_name} values"]
+        data: list[str] = [f"insert into {table_name} values"]
         count: int = 0
 
         for d in data_set:
@@ -357,7 +356,7 @@ class TaosDatabase(BaseDatabase):
             else:
                 self.cursor.execute(" ".join(data))
 
-                data: List[str] = [f"insert into {table_name} values"]
+                data: list[str] = [f"insert into {table_name} values"]
                 count = 0
 
         if count != 0:
