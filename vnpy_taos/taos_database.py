@@ -10,7 +10,6 @@ from vnpy.trader.database import (
     BaseDatabase,
     BarOverview,
     TickOverview,
-    DB_TZ,
 )
 from vnpy.trader.setting import SETTINGS
 
@@ -83,12 +82,12 @@ class TaosDatabase(BaseDatabase):
 
         # 没有该合约
         if not overview_count:
-            overview_start: datetime = bars[0].datetime.astimezone(DB_TZ)
-            overview_end: datetime = bars[-1].datetime.astimezone(DB_TZ)
+            overview_start: datetime = bars[0].datetime
+            overview_end: datetime = bars[-1].datetime
             overview_count: int = len(bars)
         # 已有该合约
         elif stream:
-            overview_end: datetime = bars[-1].datetime.astimezone(DB_TZ)
+            overview_end: datetime = bars[-1].datetime
             overview_count += len(bars)
         else:
             overview_start: datetime = min(overview_start, bars[0].datetime)
@@ -138,12 +137,12 @@ class TaosDatabase(BaseDatabase):
 
         # 没有该合约
         if not overview_count:
-            overview_start: datetime = ticks[0].datetime.astimezone(DB_TZ)
-            overview_end: datetime = ticks[-1].datetime.astimezone(DB_TZ)
+            overview_start: datetime = ticks[0].datetime
+            overview_end: datetime = ticks[-1].datetime
             overview_count: int = len(ticks)
         # 已有该合约
         elif stream:
-            overview_end: datetime = ticks[-1].datetime.astimezone(DB_TZ)
+            overview_end: datetime = ticks[-1].datetime
             overview_count += len(ticks)
         else:
             overview_start: datetime = min(overview_start, ticks[0].datetime)
@@ -184,7 +183,7 @@ class TaosDatabase(BaseDatabase):
             bar: BarData = BarData(
                 symbol=symbol,
                 exchange=exchange,
-                datetime=row.datetime.astimezone(DB_TZ.key),
+                datetime=row.datetime,
                 interval=Interval(row.interval_),
                 volume=row.volume,
                 turnover=row.turnover,
@@ -220,7 +219,7 @@ class TaosDatabase(BaseDatabase):
             tick: TickData = TickData(
                 symbol=symbol,
                 exchange=exchange,
-                datetime=row.datetime.astimezone(DB_TZ.key),
+                datetime=row.datetime,
                 name=row.name,
                 volume=row.volume,
                 turnover=row.turnover,
@@ -311,8 +310,8 @@ class TaosDatabase(BaseDatabase):
                 symbol=row.symbol,
                 exchange=Exchange(row.exchange),
                 interval=Interval(row.interval_),
-                start=row.start_time.astimezone(DB_TZ.key),
-                end=row.end_time.astimezone(DB_TZ.key),
+                start=row.start_time,
+                end=row.end_time,
                 count=int(row.count_),
             )
             overviews.append(overview)
@@ -331,8 +330,8 @@ class TaosDatabase(BaseDatabase):
             overview: TickOverview = TickOverview(
                 symbol=row.symbol,
                 exchange=Exchange(row.exchange),
-                start=row.start_time.astimezone(DB_TZ.key),
-                end=row.end_time.astimezone(DB_TZ.key),
+                start=row.start_time,
+                end=row.end_time,
                 count=int(row.count_),
             )
             overviews.append(overview)
