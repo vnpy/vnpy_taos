@@ -10,6 +10,7 @@ from vnpy.trader.database import (
     BaseDatabase,
     BarOverview,
     TickOverview,
+    DB_TZ,
 )
 from vnpy.trader.setting import SETTINGS
 
@@ -183,7 +184,7 @@ class TaosDatabase(BaseDatabase):
             bar: BarData = BarData(
                 symbol=symbol,
                 exchange=exchange,
-                datetime=row.datetime,
+                datetime=row.datetime.astimezone(DB_TZ),
                 interval=Interval(row.interval_),
                 volume=row.volume,
                 turnover=row.turnover,
@@ -219,7 +220,7 @@ class TaosDatabase(BaseDatabase):
             tick: TickData = TickData(
                 symbol=symbol,
                 exchange=exchange,
-                datetime=row.datetime,
+                datetime=row.datetime.astimezone(DB_TZ),
                 name=row.name,
                 volume=row.volume,
                 turnover=row.turnover,
@@ -310,8 +311,8 @@ class TaosDatabase(BaseDatabase):
                 symbol=row.symbol,
                 exchange=Exchange(row.exchange),
                 interval=Interval(row.interval_),
-                start=row.start_time,
-                end=row.end_time,
+                start=row.start_time.astimezone(DB_TZ),
+                end=row.end_time.astimezone(DB_TZ),
                 count=int(row.count_),
             )
             overviews.append(overview)
@@ -330,8 +331,8 @@ class TaosDatabase(BaseDatabase):
             overview: TickOverview = TickOverview(
                 symbol=row.symbol,
                 exchange=Exchange(row.exchange),
-                start=row.start_time,
-                end=row.end_time,
+                start=row.start_time.astimezone(DB_TZ),
+                end=row.end_time.astimezone(DB_TZ),
                 count=int(row.count_),
             )
             overviews.append(overview)
