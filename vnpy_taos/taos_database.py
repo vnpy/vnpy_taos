@@ -344,19 +344,19 @@ class TaosDatabase(BaseDatabase):
         if table_name.split("_")[0] == "bar":
             generate: Callable = generate_bar
         else:
-            generate: Callable = generate_tick
+            generate = generate_tick
 
         data: list[str] = [f"insert into {table_name} values"]
         count: int = 0
 
         for d in data_set:
-            if count < batch_size:
-                data.append(generate(d))
-                count += 1
-            else:
+            data.append(generate(d))
+            count += 1
+
+            if count == batch_size:
                 self.cursor.execute(" ".join(data))
 
-                data: list[str] = [f"insert into {table_name} values"]
+                data = [f"insert into {table_name} values"]
                 count = 0
 
         if count != 0:
