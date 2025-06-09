@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Callable
+from collections.abc import Callable
 
 import taos
 import pandas as pd
@@ -83,22 +83,22 @@ class TaosDatabase(BaseDatabase):
 
         # 没有该合约
         if not overview_count:
-            overview_start: datetime = bars[0].datetime
-            overview_end: datetime = bars[-1].datetime
-            overview_count: int = len(bars)
+            overview_start = bars[0].datetime
+            overview_end = bars[-1].datetime
+            overview_count = len(bars)
         # 已有该合约
         elif stream:
-            overview_end: datetime = bars[-1].datetime
+            overview_end = bars[-1].datetime
             overview_count += len(bars)
         else:
-            overview_start: datetime = min(overview_start, bars[0].datetime)
-            overview_end: datetime = max(overview_end, bars[-1].datetime)
+            overview_start = min(overview_start, bars[0].datetime)
+            overview_end = max(overview_end, bars[-1].datetime)
 
             self.cursor.execute(f"select count(*) from {table_name}")
-            results: list[tuple] = self.cursor.fetchall()
+            results = self.cursor.fetchall()
 
             bar_count: int = int(results[0][0])
-            overview_count: int = bar_count
+            overview_count = bar_count
 
         # 更新汇总信息
         self.cursor.execute(f"ALTER TABLE {table_name} SET TAG start_time='{overview_start}';")
@@ -138,22 +138,22 @@ class TaosDatabase(BaseDatabase):
 
         # 没有该合约
         if not overview_count:
-            overview_start: datetime = ticks[0].datetime
-            overview_end: datetime = ticks[-1].datetime
-            overview_count: int = len(ticks)
+            overview_start = ticks[0].datetime
+            overview_end = ticks[-1].datetime
+            overview_count = len(ticks)
         # 已有该合约
         elif stream:
-            overview_end: datetime = ticks[-1].datetime
+            overview_end = ticks[-1].datetime
             overview_count += len(ticks)
         else:
-            overview_start: datetime = min(overview_start, ticks[0].datetime)
-            overview_end: datetime = max(overview_end, ticks[-1].datetime)
+            overview_start = min(overview_start, ticks[0].datetime)
+            overview_end = max(overview_end, ticks[-1].datetime)
 
             self.cursor.execute(f"select count(*) from {table_name}")
-            results: list[tuple] = self.cursor.fetchall()
+            results = self.cursor.fetchall()
 
             tick_count: int = int(results[0][0])
-            overview_count: int = tick_count
+            overview_count = tick_count
 
         # 更新汇总信息
         self.cursor.execute(f"ALTER TABLE {table_name} SET TAG start_time='{overview_start}';")
@@ -378,7 +378,7 @@ def generate_tick(tick: TickData) -> str:
         localtime: datetime = tick.localtime
     # tick带localtime
     else:
-        localtime: datetime = tick.datetime
+        localtime = tick.datetime
 
     result: str = (f"('{tick.datetime}', '{tick.name}', {tick.volume}, {tick.turnover}, "
                    + f"{tick.open_interest}, {tick.last_price}, {tick.last_volume}, "

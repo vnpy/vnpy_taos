@@ -21,12 +21,10 @@
 # SOFTWARE.
 
 
-import importlib_metadata
-
 from .taos_database import TaosDatabase as Database
 
 
-try:
-    __version__ = importlib_metadata.version("vnpy_taos")
-except importlib_metadata.PackageNotFoundError:
-    __version__ = "dev"
+__all__ = ["Database"]
+
+
+__version__ = "1.1.0"
