@@ -1,5 +1,6 @@
 from datetime import datetime
 from collections.abc import Callable
+from typing import cast
 
 import taos
 import pandas as pd
@@ -184,7 +185,7 @@ class TaosDatabase(BaseDatabase):
             bar: BarData = BarData(
                 symbol=symbol,
                 exchange=exchange,
-                datetime=row.datetime.astimezone(DB_TZ),
+                datetime=row.datetime.astimezone(DB_TZ),    # type: ignore
                 interval=Interval(row.interval_),
                 volume=row.volume,
                 turnover=row.turnover,
@@ -220,7 +221,7 @@ class TaosDatabase(BaseDatabase):
             tick: TickData = TickData(
                 symbol=symbol,
                 exchange=exchange,
-                datetime=row.datetime.astimezone(DB_TZ),
+                datetime=cast(datetime, row.datetime).astimezone(DB_TZ),
                 name=row.name,
                 volume=row.volume,
                 turnover=row.turnover,
@@ -311,9 +312,9 @@ class TaosDatabase(BaseDatabase):
                 symbol=row.symbol,
                 exchange=Exchange(row.exchange),
                 interval=Interval(row.interval_),
-                start=row.start_time.astimezone(DB_TZ),
-                end=row.end_time.astimezone(DB_TZ),
-                count=int(row.count_),
+                start=cast(datetime, row.start_time).astimezone(DB_TZ),
+                end=cast(datetime, row.end_time).astimezone(DB_TZ),
+                count=cast(int, row.count_),
             )
             overviews.append(overview)
 
@@ -331,9 +332,9 @@ class TaosDatabase(BaseDatabase):
             overview: TickOverview = TickOverview(
                 symbol=row.symbol,
                 exchange=Exchange(row.exchange),
-                start=row.start_time.astimezone(DB_TZ),
-                end=row.end_time.astimezone(DB_TZ),
-                count=int(row.count_),
+                start=cast(datetime, row.start_time).astimezone(DB_TZ),
+                end=cast(datetime, row.end_time).astimezone(DB_TZ),
+                count=cast(int, row.count_),
             )
             overviews.append(overview)
 

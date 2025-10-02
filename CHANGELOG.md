@@ -1,3 +1,7 @@
+# 1.1.1版本
+
+1. 优化get_bar_overview和get_tick_overview函数性能（直接访问超级表的tags）
+
 # 1.1.0版本
 
 1. vnpy框架4.0版本升级适配
