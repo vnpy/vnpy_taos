@@ -301,7 +301,7 @@ class TaosDatabase(BaseDatabase):
     def get_bar_overview(self) -> list[BarOverview]:
         """查询K线汇总信息"""
         # 从数据库读取数据
-        df: pd.DataFrame = pd.read_sql("SELECT DISTINCT symbol, exchange, interval_, start_time, end_time, count_ FROM s_bar", self.conn)
+        df: pd.DataFrame = pd.read_sql("SHOW TABLE TAGS FROM s_bar", self.conn)
 
         # 返回BarOverview列表
         overviews: list[BarOverview] = []
@@ -322,7 +322,7 @@ class TaosDatabase(BaseDatabase):
     def get_tick_overview(self) -> list[TickOverview]:
         """查询Tick汇总信息"""
         # 从数据库读取数据
-        df: pd.DataFrame = pd.read_sql("SELECT DISTINCT symbol, exchange, start_time, end_time, count_ FROM s_tick", self.conn)
+        df: pd.DataFrame = pd.read_sql("SHOW TABLE TAGS FROM s_tick", self.conn)
 
         # TickOverview
         overviews: list[TickOverview] = []
