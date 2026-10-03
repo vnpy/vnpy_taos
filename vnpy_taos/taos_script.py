@@ -1,6 +1,4 @@
-"""
-TDengine脚本, 用于在TDengine中创建数据库和数据表。
-"""
+"""TDengine脚本, 用于在TDengine中创建数据库和数据表。"""
 
 # 创建数据库
 CREATE_DATABASE_SCRIPT = """

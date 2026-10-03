@@ -1,3 +1,5 @@
+"""TDengine的K线与Tick存储实现。"""
+
 from datetime import datetime
 from collections.abc import Callable
 from typing import cast
