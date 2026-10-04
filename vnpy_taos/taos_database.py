@@ -59,7 +59,7 @@ class TaosDatabase(BaseDatabase):
         bar: BarData = bars[0]
         symbol: str = bar.symbol
         exchange: Exchange = bar.exchange
-        interval: Interval = bar.interval
+        interval: Interval = cast(Interval, bar.interval)
 
         count: int = 0
         table_name: str = "_".join(["bar", symbol.replace("-", "_"), exchange.value, interval.value])
@@ -187,15 +187,15 @@ class TaosDatabase(BaseDatabase):
             bar: BarData = BarData(
                 symbol=symbol,
                 exchange=exchange,
-                datetime=row.datetime.astimezone(DB_TZ),    # type: ignore
+                datetime=cast(datetime, row.datetime).astimezone(DB_TZ),
                 interval=Interval(row.interval_),
-                volume=row.volume,
-                turnover=row.turnover,
-                open_interest=row.open_interest,
-                open_price=row.open_price,
-                high_price=row.high_price,
-                low_price=row.low_price,
-                close_price=row.close_price,
+                volume=_cell_float(row.volume),
+                turnover=_cell_float(row.turnover),
+                open_interest=_cell_float(row.open_interest),
+                open_price=_cell_float(row.open_price),
+                high_price=_cell_float(row.high_price),
+                low_price=_cell_float(row.low_price),
+                close_price=_cell_float(row.close_price),
                 gateway_name="DB"
             )
             bars.append(bar)
@@ -224,38 +224,38 @@ class TaosDatabase(BaseDatabase):
                 symbol=symbol,
                 exchange=exchange,
                 datetime=cast(datetime, row.datetime).astimezone(DB_TZ),
-                name=row.name,
-                volume=row.volume,
-                turnover=row.turnover,
-                open_interest=row.open_interest,
-                last_price=row.last_price,
-                limit_up=row.limit_up,
-                limit_down=row.limit_down,
-                open_price=row.open_price,
-                high_price=row.high_price,
-                low_price=row.last_price,
-                pre_close=row.pre_close,
-                bid_price_1=row.bid_price_1,
-                bid_price_2=row.bid_price_2,
-                bid_price_3=row.bid_price_3,
-                bid_price_4=row.bid_price_4,
-                bid_price_5=row.bid_price_5,
-                ask_price_1=row.ask_price_1,
-                ask_price_2=row.ask_price_2,
-                ask_price_3=row.ask_price_3,
-                ask_price_4=row.ask_price_4,
-                ask_price_5=row.ask_price_5,
-                bid_volume_1=row.bid_volume_1,
-                bid_volume_2=row.bid_volume_2,
-                bid_volume_3=row.bid_volume_3,
-                bid_volume_4=row.bid_volume_4,
-                bid_volume_5=row.bid_volume_5,
-                ask_volume_1=row.ask_volume_1,
-                ask_volume_2=row.ask_volume_2,
-                ask_volume_3=row.ask_volume_3,
-                ask_volume_4=row.ask_volume_4,
-                ask_volume_5=row.ask_volume_5,
-                localtime=row.localtime,
+                name=_cell_str(row.name),
+                volume=_cell_float(row.volume),
+                turnover=_cell_float(row.turnover),
+                open_interest=_cell_float(row.open_interest),
+                last_price=_cell_float(row.last_price),
+                limit_up=_cell_float(row.limit_up),
+                limit_down=_cell_float(row.limit_down),
+                open_price=_cell_float(row.open_price),
+                high_price=_cell_float(row.high_price),
+                low_price=_cell_float(row.last_price),
+                pre_close=_cell_float(row.pre_close),
+                bid_price_1=_cell_float(row.bid_price_1),
+                bid_price_2=_cell_float(row.bid_price_2),
+                bid_price_3=_cell_float(row.bid_price_3),
+                bid_price_4=_cell_float(row.bid_price_4),
+                bid_price_5=_cell_float(row.bid_price_5),
+                ask_price_1=_cell_float(row.ask_price_1),
+                ask_price_2=_cell_float(row.ask_price_2),
+                ask_price_3=_cell_float(row.ask_price_3),
+                ask_price_4=_cell_float(row.ask_price_4),
+                ask_price_5=_cell_float(row.ask_price_5),
+                bid_volume_1=_cell_float(row.bid_volume_1),
+                bid_volume_2=_cell_float(row.bid_volume_2),
+                bid_volume_3=_cell_float(row.bid_volume_3),
+                bid_volume_4=_cell_float(row.bid_volume_4),
+                bid_volume_5=_cell_float(row.bid_volume_5),
+                ask_volume_1=_cell_float(row.ask_volume_1),
+                ask_volume_2=_cell_float(row.ask_volume_2),
+                ask_volume_3=_cell_float(row.ask_volume_3),
+                ask_volume_4=_cell_float(row.ask_volume_4),
+                ask_volume_5=_cell_float(row.ask_volume_5),
+                localtime=_cell_timestamp(row.localtime),
                 gateway_name="DB"
             )
             ticks.append(tick)
@@ -311,7 +311,7 @@ class TaosDatabase(BaseDatabase):
 
         for row in df.itertuples():
             overview: BarOverview = BarOverview(
-                symbol=row.symbol,
+                symbol=_cell_str(row.symbol),
                 exchange=Exchange(row.exchange),
                 interval=Interval(row.interval_),
                 start=cast(datetime, row.start_time).astimezone(DB_TZ),
@@ -332,7 +332,7 @@ class TaosDatabase(BaseDatabase):
 
         for row in df.itertuples():
             overview: TickOverview = TickOverview(
-                symbol=row.symbol,
+                symbol=_cell_str(row.symbol),
                 exchange=Exchange(row.exchange),
                 start=cast(datetime, row.start_time).astimezone(DB_TZ),
                 end=cast(datetime, row.end_time).astimezone(DB_TZ),
@@ -393,3 +393,18 @@ def generate_tick(tick: TickData) -> str:
                    + f"'{localtime}')")
 
     return result
+
+
+def _cell_float(value: object) -> float:
+    """把查询单元格收窄为 float。"""
+    return cast(float, value)
+
+
+def _cell_str(value: object) -> str:
+    """把查询单元格收窄为 str。"""
+    return cast(str, value)
+
+
+def _cell_timestamp(value: object) -> pd.Timestamp:
+    """把查询单元格收窄为 pandas 时间戳。"""
+    return cast(pd.Timestamp, value)
