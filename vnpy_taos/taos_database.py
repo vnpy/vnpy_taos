@@ -2,7 +2,7 @@
 
 from datetime import datetime
 from collections.abc import Callable
-from typing import cast
+from typing import Any, cast
 
 import taos
 import pandas as pd
@@ -183,6 +183,8 @@ class TaosDatabase(BaseDatabase):
         # 返回BarData列表
         bars: list[BarData] = []
 
+        # itertuples 静态类型是 tuple，列字段无法命名
+        row: Any
         for row in df.itertuples():
             bar: BarData = BarData(
                 symbol=symbol,
@@ -219,6 +221,8 @@ class TaosDatabase(BaseDatabase):
         # 返回TickData列表
         ticks: list[TickData] = []
 
+        # itertuples 静态类型是 tuple，列字段无法命名
+        row: Any
         for row in df.itertuples():
             tick: TickData = TickData(
                 symbol=symbol,
@@ -309,6 +313,8 @@ class TaosDatabase(BaseDatabase):
         # 返回BarOverview列表
         overviews: list[BarOverview] = []
 
+        # itertuples 静态类型是 tuple，列字段无法命名
+        row: Any
         for row in df.itertuples():
             overview: BarOverview = BarOverview(
                 symbol=_cell_str(row.symbol),
@@ -330,6 +336,8 @@ class TaosDatabase(BaseDatabase):
         # TickOverview
         overviews: list[TickOverview] = []
 
+        # itertuples 静态类型是 tuple，列字段无法命名
+        row: Any
         for row in df.itertuples():
             overview: TickOverview = TickOverview(
                 symbol=_cell_str(row.symbol),
@@ -352,6 +360,7 @@ class TaosDatabase(BaseDatabase):
         data: list[str] = [f"insert into {table_name} values"]
         count: int = 0
 
+        d: BarData | TickData
         for d in data_set:
             data.append(generate(d))
             count += 1

@@ -1,12 +1,12 @@
 """TDengine脚本, 用于在TDengine中创建数据库和数据表。"""
 
 # 创建数据库
-CREATE_DATABASE_SCRIPT = """
+CREATE_DATABASE_SCRIPT: str = """
 CREATE DATABASE IF NOT EXISTS {} KEEP 36500
 """
 
 # 创建bar超级表
-CREATE_BAR_TABLE_SCRIPT = """
+CREATE_BAR_TABLE_SCRIPT: str = """
 CREATE STABLE IF NOT EXISTS s_bar (
     datetime TIMESTAMP,
     volume DOUBLE,
@@ -28,7 +28,7 @@ TAGS(
 """
 
 # 创建tick超级表
-CREATE_TICK_TABLE_SCRIPT = """
+CREATE_TICK_TABLE_SCRIPT: str = """
 CREATE STABLE IF NOT EXISTS s_tick (
     datetime TIMESTAMP,
     name NCHAR(20),
