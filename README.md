@@ -1,44 +1,63 @@
-# VeighNa框架的TDengine数据库接口
+# VeighNa Apache IoTDB database adapter
 
-<p align="center">
-  <img src ="https://vnpy.oss-cn-shanghai.aliyuncs.com/vnpy-logo.png"/>
-</p>
+`vnpy_iotdb` stores VeighNa bar and tick history in Apache IoTDB using the
+Tree data model and the official `apache-iotdb` Python client.
 
-<p align="center">
-    <img src ="https://img.shields.io/badge/version-1.1.2-blueviolet.svg"/>
-    <img src ="https://img.shields.io/badge/platform-windows|linux-yellow.svg"/>
-    <img src ="https://img.shields.io/badge/python-3.10|3.11|3.12|3.13-blue.svg" />
-</p>
+## Compatibility
 
-## 说明
+- Apache IoTDB server: 2.0.x
+- Python: 3.10 or later
+- VeighNa: 4.x database adapter interface
 
-基于TDengine的Python连接器taospy开发的TDengine数据库接口。
+Bars and ticks are represented as measurements beneath one device path for
+each symbol, exchange, and (for bars) interval. Identifier components are
+encoded into path-safe segments and decoded by the overview methods. The
+adapter sends timestamps in milliseconds. Keep IoTDB's `timestamp_precision`
+at its default `ms` value; sub-millisecond datetime precision is truncated.
 
-**需要使用TDengine 3.3.4.8以上版本。**
+## Install and configure
 
-## 使用
+```bash
+pip install vnpy_iotdb
+```
 
-在VeighNa中使用TDengine时，需要在全局配置中填写以下字段信息：
+Set these fields in VeighNa's global database settings, then restart Trader:
 
-|名称|含义|必填|举例|
-|---------|----|---|---|
-|database.name|名称|是|taos|
-|database.host|地址|是|localhost|
-|database.port|端口|是|6030|
-|database.database|实例|是|vnpy|
-|database.user|用户名|是|root|
-|database.password|密码|是|taosdata|
+| Setting | Meaning | Example |
+| --- | --- | --- |
+| `database.name` | Provider module name | `iotdb` |
+| `database.host` | IoTDB RPC host | `127.0.0.1` |
+| `database.port` | IoTDB RPC port | `6667` |
+| `database.database` | Tree database name, or full `root.<name>` path | `vnpy` |
+| `database.user` | IoTDB username | Set for your deployment |
+| `database.password` | IoTDB password | Set through local VeighNa settings |
+| `database.timezone` | Session and naive datetime timezone | `Asia/Shanghai` |
 
-### 连接
+Optional pool controls are `database.iotdb.pool_size` (default `5`),
+`database.iotdb.wait_timeout_ms` (default `30000`), and
+`database.iotdb.query_timeout_ms` (default `30000`).
 
-连接前需要根据环境安装配置TDengine的客户端和服务端，TDengine的安装流程请参考[官方文档](https://docs.taosdata.com/get-started/docker/)。
+## Behavior
 
-新手用户推荐选择Docker方式运行，Windows系统上的整体流程如下：
+- Writes use IoTDB `Tablet` batches of at most 1,000 rows.
+- Reads filter on inclusive start and end timestamps.
+- Bar and tick overview counts and time bounds are calculated from stored
+  measurements, so they remain correct after repeated timestamp upserts.
+- Delete methods remove all stored points for the selected device and return
+  the number of points counted before deletion. IoTDB timeseries schemas remain
+  available for later writes.
+- Call `Database.close()` when the owning application shuts down to close the
+  connection pool.
 
-1. 安装启动[Docker Desktop](https://www.docker.com/)软件
-2. 在命令行中拉取最新版本TDengine容器镜像：```docker pull tdengine/tdengine:latest```
-3. 运行当前仓库中的start_docker.sh脚本，启动TDengine容器
-4. 安装TDengine的Windows客户端软件：[TDengine-client-3.3.4.8-Windows-x64.exe (10.2 M)](https://docs.taosdata.com/get-started/package/)
-5. 安装vnpy_taos模块：```pip install vnpy_taos```
-6. 参考上一步【使用】中的内容修改VeighNa Trader全局配置中的相关字段
-7. 重启VeighNa Trader即可开始使用
+This adapter targets the Tree model only. It does not create IoTDB Table-model
+tables or translate between Tree and Table data.
+
+## Development
+
+Run the offline adapter tests with:
+
+```bash
+python -m pytest
+```
+
+The tests mock the IoTDB session and do not require a running database.

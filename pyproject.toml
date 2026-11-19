@@ -1,7 +1,7 @@
 [project]
-name = "vnpy_taos"
+name = "vnpy_iotdb"
 dynamic = ["version"]
-description = "TDengine database adapter for VeighNa quant trading framework."
+description = "Apache IoTDB database adapter for VeighNa quant trading framework."
 readme = "README.md"
 license = {text = "MIT"}
 authors = [{name = "Xiaoyou Chen", email = "xiaoyou.chen@mail.vnpy.com"}]
@@ -21,7 +21,7 @@ classifiers = [
 ]
 requires-python = ">=3.10"
 dependencies = [
-    "taospy>=2.8.0"
+    "apache-iotdb>=2.0.4,<3.0"
 ]
 keywords = ["quant", "quantitative", "investment", "trading", "algotrading"]
 
@@ -37,15 +37,15 @@ requires = ["hatchling>=1.27.0"]
 build-backend = "hatchling.build"
 
 [tool.hatch.version]
-path = "vnpy_taos/__init__.py"
+path = "vnpy_iotdb/__init__.py"
 pattern = "__version__ = ['\"](?P<version>[^'\"]+)['\"]"
 
 [tool.hatch.build.targets.wheel]
-packages = ["vnpy_taos"]
+packages = ["vnpy_iotdb"]
 include-package-data = true
 
 [tool.hatch.build.targets.sdist]
-include = ["vnpy_taos*"] 
+include = ["vnpy_iotdb*", "tests/test_iotdb_database.py", "README.md", "LICENSE"]
 
 [tool.ruff]
 target-version = "py310"
